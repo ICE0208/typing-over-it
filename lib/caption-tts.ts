@@ -45,6 +45,41 @@ function isMaleByName(v: SpeechSynthesisVoice): boolean {
   return MALE_VOICE_NAMES.some((m) => v.name.includes(m));
 }
 
+// 알려진 여성 영문 보이스 블랙리스트. 마지막 fallback에서 영문 여성을 마지막 순위로
+// 밀어내기 위해 사용 — Foddy 톤은 남성 나레이터라 여성 픽되면 분위기 깨짐.
+// 동료 맥에서 영문 남성 보이스가 미설치라 fallback이 Kate/Samantha 등 여성으로 떨어지는 케이스 대응.
+const FEMALE_VOICE_NAMES = [
+  // macOS en-GB 여성
+  "Kate",
+  "Serena",
+  "Sangeeta",
+  "Tessa",
+  // macOS en-US 여성
+  "Samantha",
+  "Allison",
+  "Ava",
+  "Susan",
+  "Vicki",
+  "Victoria",
+  "Princess",
+  // macOS en-AU/en-IE/en-IN 여성
+  "Karen",
+  "Moira",
+  "Veena",
+  // Windows 여성
+  "Hazel",
+  "Zira",
+  "Eva",
+  "Heera",
+  // Chrome cloud 여성
+  "Google UK English Female",
+  "Google US English",
+];
+
+function isFemaleByName(v: SpeechSynthesisVoice): boolean {
+  return FEMALE_VOICE_NAMES.some((f) => v.name.includes(f));
+}
+
 function selectEnglishVoice(
   voices: SpeechSynthesisVoice[]
 ): SpeechSynthesisVoice | null {
@@ -78,8 +113,15 @@ function selectEnglishVoice(
   // 5순위: 어떤 남성 보이스든 (lang 무관)
   if (males[0]) return males[0];
 
-  // 최종 fallback — 남성 보이스가 전혀 없으면 영문 아무거나 (성별 무관)
+  // 최종 fallback — 남성 보이스가 전혀 없는 환경(영문 남성 미설치 맥 등).
+  // 1차로 "여성 블랙리스트 제외" 보이스를 찾고, 그것도 없으면 그제야 여성 허용.
+  // 이름이 화이트리스트(남성)에도 블랙리스트(여성)에도 없는 unknown 보이스가 우선됨.
+  const notFemale = (v: SpeechSynthesisVoice) => !isFemaleByName(v);
   return (
+    voices.find((v) => v.lang === "en-GB" && v.localService && notFemale(v)) ??
+    voices.find((v) => v.lang === "en-US" && v.localService && notFemale(v)) ??
+    voices.find((v) => v.lang.startsWith("en") && notFemale(v)) ??
+    // unknown gender 보이스도 못 찾으면 여성이라도 (무발화보다 나음)
     voices.find((v) => v.lang === "en-GB" && v.localService) ??
     voices.find((v) => v.lang === "en-US" && v.localService) ??
     voices.find((v) => v.lang.startsWith("en")) ??
