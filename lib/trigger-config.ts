@@ -9,9 +9,9 @@ export const TRIGGER = {
   panic: { windowMs: 1000, threshold: 22 },
   backspace: { windowMs: 1000, burstThreshold: 5, holdMs: 2000 },
   silence: {
-    silenceMs: 7000,
+    silenceMs: 30000,
     priorActivityWindowMs: 5000,
-    historyWindowMs: 12000,
+    historyWindowMs: 35000,
   },
   keyRepeat: {
     keys: ["Escape", "Enter", " "] as const,
