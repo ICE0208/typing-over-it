@@ -59,21 +59,28 @@ export function IdeShell() {
     const nextTree = applyOverrides(withAdds, overrides);
     if (nextTree !== initialTree) setTree(nextTree);
 
-    const defaultId = "src/app/page.tsx";
-    const node = findNode(nextTree, defaultId);
-    if (!node || node.children) return;
-    const content = node.content ?? "";
-    setOpenFiles({
-      [defaultId]: {
-        id: defaultId,
+    // 자동 오픈 순서: README.md(active) + page.tsx
+    // README가 트리거 튜토리얼 역할, page.tsx는 옆 탭에서 바로 진입 가능.
+    const defaultIds = ["README.md", "src/app/page.tsx"];
+    const opened: Record<string, OpenFile> = {};
+    const order: string[] = [];
+    for (const id of defaultIds) {
+      const node = findNode(nextTree, id);
+      if (!node || node.children) continue;
+      const content = node.content ?? "";
+      opened[id] = {
+        id,
         name: node.name,
         language: node.language ?? languageFromName(node.name),
         value: content,
         original: content,
-      },
-    });
-    setTabOrder([defaultId]);
-    setActiveId(defaultId);
+      };
+      order.push(id);
+    }
+    if (order.length === 0) return;
+    setOpenFiles(opened);
+    setTabOrder(order);
+    setActiveId(order[0]);
   }, []);
 
   const activeFile = activeId ? openFiles[activeId] : null;

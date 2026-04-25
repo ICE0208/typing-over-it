@@ -58,33 +58,19 @@ export function TypingEngineHost() {
     };
     window.addEventListener("keydown", onManualKey, { capture: true });
 
-    // 첫 방문 환영 — sessionStorage 판정으로 탭당 1회. 첫 keydown이 user gesture를
-    // 만족시키므로 force=true로 발화하면 자막(이후 TTS 추가 시 음성도) autoplay 정책 통과.
+    // 첫 방문 환영 — 새로고침마다 재무장. 영속 저장 없이 effect 클로저 내 1회 가드만 둠.
+    // 첫 keydown이 user gesture를 만족시키므로 force=true로 발화하면 자막(이후 TTS 추가 시 음성도) autoplay 통과.
     // capture 단계에서 듣되 preventDefault는 하지 않음(타이핑은 정상 진행).
-    let welcomeArmed = false;
-    try {
-      welcomeArmed = window.sessionStorage.getItem("typingOverIt:welcomed") !== "1";
-    } catch {
-      // private mode 등 sessionStorage 차단 시 환영 스킵 (비핵심 기능)
-      welcomeArmed = false;
-    }
     const onFirstKey = () => {
       window.removeEventListener("keydown", onFirstKey, { capture: true });
-      try {
-        window.sessionStorage.setItem("typingOverIt:welcomed", "1");
-      } catch {}
       console.log("[TypingOverIt] [환영] 첫 keydown 감지 → welcome 강제 발화");
       scheduler.fire("welcome", { force: true });
     };
-    if (welcomeArmed) {
-      window.addEventListener("keydown", onFirstKey, { capture: true });
-    }
+    window.addEventListener("keydown", onFirstKey, { capture: true });
 
     return () => {
       window.removeEventListener("keydown", onManualKey, { capture: true });
-      if (welcomeArmed) {
-        window.removeEventListener("keydown", onFirstKey, { capture: true });
-      }
+      window.removeEventListener("keydown", onFirstKey, { capture: true });
       detector.dispose();
       scheduler.dispose();
     };
