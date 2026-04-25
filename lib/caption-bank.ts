@@ -48,8 +48,20 @@ export const captionBank: Record<RuleCategory, CaptionPair[]> = {
     { ko: "정지 화면 뒤에서 결심이 사라지고 있습니다.", en: "Behind the still screen, resolve is quietly leaving." },
     { ko: "30초 동안 아무 일도 일어나지 않았습니다.", en: "Thirty seconds of absolutely nothing. Catalogued." },
   ],
-  // Rule D는 스코프 밖. 풀이 비어있으면 scheduler가 발화를 스킵한다.
-  noise: [],
+  // Rule D — 책상 침, 한숨, 갑작스러운 소리. 감정이 논리를 추월한 순간.
+  // 자동 감지(마이크 dB)는 아직 미구현이지만 수동 트리거(Ctrl+Alt+4)용으로 풀은 채워둠.
+  noise: [
+    { ko: "방금 감정이 논리를 추월했습니다.",       en: "Emotion just overtook logic by a full lap." },
+    { ko: "책상은 반응했고, 시스템은 가만히 있습니다.", en: "The desk heard that. The compiler did not." },
+    { ko: "키보드 소리가 아닙니다. 사람 소리네요.", en: "That was not a keystroke. That was a person." },
+    { ko: "한숨이 방금 입력 장치를 앞질렀습니다.",  en: "The sigh arrived before the keystroke did." },
+    { ko: "방은 들었습니다. 버그는 듣지 않았고요.", en: "The room heard you. The bug remained indifferent." },
+    { ko: "그건 진전이 아니라 기후였습니다.",        en: "That sound was not progress. That was weather." },
+    { ko: "감정이 먼저 완료되었습니다. 코드는 아직요.", en: "The feeling finished compiling. The code did not." },
+    { ko: "타이핑보다 숨소리가 더 솔직해졌군요.",   en: "Your breathing is more honest than your typing now." },
+    { ko: "방금 것은 의견이었습니다. 주로 감정이지만요.", en: "That was an opinion. Mostly emotional, technically valid." },
+    { ko: "물리 세계가 먼저 결론에 도달했습니다.",  en: "The physical world got there before the code did." },
+  ],
   // Rule E — Esc/Enter/Space 연타/꾹 누름. 문제에 반응만 하고 있는 상태.
   keyrepeat: [
     { ko: "반응하는 것과 푸는 것은 다릅니다.",     en: "Reacting is not solving. They just rhyme." },
