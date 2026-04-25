@@ -1,4 +1,5 @@
 export type RuleCategory =
+  | "welcome"
   | "panic"
   | "backspace"
   | "silence"
@@ -29,6 +30,7 @@ export const CAPTION_TIMING = {
 } as const;
 
 export const PRIORITY: readonly RuleCategory[] = [
+  "welcome",
   "silence",
   "panic",
   "backspace",

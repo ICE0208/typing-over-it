@@ -12,6 +12,30 @@ export type CaptionPair = { ko: string; en: string };
 //   - 영어: 차분한 관찰 + 철학적 펀치라인
 //   - 두 줄은 같은 말을 반복하지 않고 서로 보완
 export const captionBank: Record<RuleCategory, CaptionPair[]> = {
+  // 첫 방문 환영(sessionStorage 기반 일회성). 첫 input 이벤트가 user gesture를
+  // 만족시키므로 force=true로 발화 → autoplay 정책 통과. 풀에서 1개만 랜덤.
+  welcome: [
+    { ko: "또 오셨군요. 이번엔 다를까요?",            en: "You're back. We'll see if it's different this time." },
+    { ko: "환영합니다. 미리 사과드립니다.",           en: "Welcome. The apology is preemptive." },
+    { ko: "키보드는 준비됐습니다. 당신만 남았네요.",  en: "The keyboard is ready. Only you are missing." },
+    { ko: "오랜만이라 하기엔, 처음 뵙네요.",          en: "I'd say 'long time no see,' but we just met." },
+    { ko: "첫 글자가 가장 솔직합니다. 잘 고르세요.",  en: "The first character is the most honest. Choose well." },
+    { ko: "시작이라 부를 만한 것을 시작합시다.",      en: "Let's begin something we can call a beginning." },
+    { ko: "시작 버튼은 없습니다. 키보드가 시작입니다.", en: "There's no start button. The keyboard is the start." },
+    { ko: "빈 화면이 가장 무거운 화면입니다.",        en: "An empty screen is the heaviest screen." },
+    { ko: "환영합니다. 이건 격려가 아닙니다.",        en: "Welcome. This is not encouragement." },
+    { ko: "도착하셨군요. 어디인지는 곧 압니다.",      en: "You've arrived. Where, we'll find out shortly." },
+    { ko: "한 글자면 시작으로는 충분합니다.",         en: "One character is enough. For a start." },
+    { ko: "안녕하세요. 이 인사는 곧 사라집니다.",     en: "Hello. This greeting expires shortly." },
+    { ko: "첫 키를 누른 순간, 시계는 시작됩니다.",    en: "The clock began the moment you pressed a key." },
+    { ko: "모든 프로젝트는 빈 파일에서 출발합니다.",  en: "Every project begins as an empty file. Sadly." },
+    { ko: "환영보다 경고에 가까운 인사입니다.",       en: "Closer to a warning than a welcome, this." },
+    { ko: "자리에 앉으셨네요. 가장 힘든 부분이었죠.", en: "You took the seat. That was the hardest part." },
+    { ko: "오늘은 다를 거라 말하지 않겠습니다.",      en: "I won't claim today will be different." },
+    { ko: "첫 입력은 늘 시범 같죠. 부담 마세요.",     en: "The first keystroke always feels like rehearsal." },
+    { ko: "환영합니다. 출구는 좌측 상단입니다.",      en: "Welcome. The exit, for reference, is top-left." },
+    { ko: "시작은 되돌릴 수 있습니다. 코드는 아닙니다.", en: "Beginnings are reversible. Code, usually, isn't." },
+  ],
   panic: [
     { ko: "속도는 방향이 아닙니다.",              en: "Speed is not direction." },
     { ko: "손이 머리를 기다리고 있지 않습니다.",  en: "Your hands did not wait for a plan." },
