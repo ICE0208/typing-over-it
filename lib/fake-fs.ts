@@ -19,10 +19,102 @@ export const initialTree: FsNode[] = [
             id: "src/app/page.tsx",
             name: "page.tsx",
             language: "typescript",
-            content: `export default function Page() {
+            content: `"use client";
+
+import { useDeferredValue, useId, useMemo, useState } from "react";
+
+type Note = {
+  id: string;
+  title: string;
+  body: string;
+  tags: ReadonlyArray<string>;
+  pinned: boolean;
+  updatedAt: number;
+};
+
+const NOW = Date.now();
+const SEED: ReadonlyArray<Note> = [
+  {
+    id: "n1",
+    title: "Refactor auth middleware",
+    body: "Replace ad-hoc cookie parsing with the new session helper.",
+    tags: ["auth", "infra"],
+    pinned: true,
+    updatedAt: NOW - 17 * 60_000,
+  },
+  {
+    id: "n2",
+    title: "Investigate flaky test",
+    body: "useEffect timing is inconsistent in CI but green locally.",
+    tags: ["tests"],
+    pinned: false,
+    updatedAt: NOW - 3 * 3_600_000,
+  },
+];
+
+function relative(ts: number): string {
+  const m = Math.max(0, Math.floor((Date.now() - ts) / 60_000));
+  if (m < 60) return m + "m ago";
+  const h = Math.floor(m / 60);
+  return h < 24 ? h + "h ago" : Math.floor(h / 24) + "d ago";
+}
+
+export default function Page() {
+  const inputId = useId();
+  const [query, setQuery] = useState("");
+  const deferred = useDeferredValue(query);
+
+  const filtered = useMemo(() => {
+    const q = deferred.trim().toLowerCase();
+    const ranked = [...SEED].sort((a, b) =>
+      a.pinned !== b.pinned ? (a.pinned ? -1 : 1) : b.updatedAt - a.updatedAt
+    );
+    if (!q) return ranked;
+    return ranked.filter((n) =>
+      [n.title, n.body, ...n.tags].join(" ").toLowerCase().includes(q)
+    );
+  }, [deferred]);
+  const stale = query !== deferred ? "opacity-60" : "opacity-100";
+
   return (
-    <main className="grid place-items-center h-screen">
-      <h1 className="text-4xl font-bold">Hello, world.</h1>
+    <main className="mx-auto max-w-2xl px-6 py-10">
+      <header className="mb-6 flex items-baseline justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight">Notes</h1>
+        <span className="text-sm text-zinc-500">{filtered.length} shown</span>
+      </header>
+      <label htmlFor={inputId} className="sr-only">
+        Search notes
+      </label>
+      <input
+        id={inputId}
+        type="search"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search title, body, or tag..."
+        autoComplete="off"
+        className="w-full rounded-md border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400"
+      />
+      <ul className={"mt-6 space-y-3 transition-opacity " + stale}>
+        {filtered.map((note) => (
+          <li key={note.id} className="rounded-lg border border-zinc-200 p-4">
+            <div className="flex items-baseline justify-between gap-2">
+              <h2 className="font-medium">
+                {note.pinned && <span aria-hidden>📌 </span>}
+                {note.title}
+              </h2>
+              <time className="text-xs text-zinc-500">{relative(note.updatedAt)}</time>
+            </div>
+            <p className="mt-1 text-sm text-zinc-600">{note.body}</p>
+            <ul className="mt-2 flex gap-1.5">
+              {note.tags.map((tag) => (
+                <li key={tag} className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-700">
+                  #{tag}
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ul>
     </main>
   );
 }

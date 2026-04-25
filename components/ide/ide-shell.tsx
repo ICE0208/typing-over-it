@@ -280,14 +280,30 @@ export function IdeShell() {
       return;
     }
     const lines = activeFile.value.split("\n");
-    // cursor 주변 ±5줄, 빈 줄 제외하면서 cursor 라인은 무조건 포함.
+    // 실효 cursor 라인 — 현재 커서가 빈 줄이면 위로 거슬러 올라가 가장 가까운
+    // 비어있지 않은 줄을 찾는다. 파일 맨 위까지 올라가도 모두 비어 있으면
+    // 거꾸로 내려가며 가장 가까운 비어있지 않은 줄을 선택. 그래도 없으면
+    // (= 파일 전체가 빈 줄) 원본 cursor 인덱스를 그대로 사용.
+    const rawIdx = Math.max(0, Math.min(lines.length - 1, cursor.line - 1));
+    let effIdx = rawIdx;
+    if (lines[effIdx].trim().length === 0) {
+      let up = effIdx;
+      while (up > 0 && lines[up].trim().length === 0) up--;
+      if (lines[up].trim().length > 0) {
+        effIdx = up;
+      } else {
+        let down = rawIdx;
+        while (down < lines.length - 1 && lines[down].trim().length === 0) down++;
+        if (lines[down].trim().length > 0) effIdx = down;
+      }
+    }
+    // cursor 주변 ±5줄, 빈 줄 제외하면서 effIdx 줄은 무조건 포함.
     // 입력 토큰 줄여 LLM latency 단축. 너무 줄이면 컨텍스트 약해지므로 5가 균형.
-    const cursorIdx = Math.max(0, Math.min(lines.length - 1, cursor.line - 1));
-    const start = Math.max(0, cursorIdx - 5);
-    const end = Math.min(lines.length, cursorIdx + 6);
+    const start = Math.max(0, effIdx - 5);
+    const end = Math.min(lines.length, effIdx + 6);
     const slice = lines.slice(start, end);
     const nonBlank = slice.filter(
-      (l, i) => l.trim().length > 0 || i === cursorIdx - start
+      (l, i) => l.trim().length > 0 || i === effIdx - start
     );
     const excerpt = nonBlank.join("\n");
     editorContextRef.set({
@@ -296,7 +312,7 @@ export function IdeShell() {
       language: activeFile.language,
       excerpt,
       recentContent: "", // koan-prompt가 트리거 시점에 getRecentContent()로 직접 채움
-      cursorLine: cursor.line,
+      cursorLine: effIdx + 1,
       lineCount: lines.length,
       siblings: getSiblings(tree, activeFile.id),
     });
