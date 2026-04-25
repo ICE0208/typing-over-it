@@ -33,6 +33,10 @@ export function IdeShell() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [cursor, setCursor] = useState({ line: 1, column: 1 });
   const [savedFlash, setSavedFlash] = useState<string | null>(null);
+  const [confirmClose, setConfirmClose] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   // Apply persisted overrides on mount (client-only — avoids hydration mismatch)
   useEffect(() => {
@@ -80,7 +84,7 @@ export function IdeShell() {
     [tree]
   );
 
-  const closeTab = useCallback((id: string) => {
+  const doClose = useCallback((id: string) => {
     setTabOrder((prev) => {
       const next = prev.filter((x) => x !== id);
       setActiveId((curr) => {
@@ -96,6 +100,15 @@ export function IdeShell() {
       return rest;
     });
   }, []);
+
+  const requestClose = useCallback((id: string) => {
+    const file = stateRef.current.openFiles[id];
+    if (file && file.value !== file.original) {
+      setConfirmClose({ id, name: file.name });
+      return;
+    }
+    doClose(id);
+  }, [doClose]);
 
   const updateContent = useCallback(
     (v: string) => {
@@ -193,7 +206,7 @@ export function IdeShell() {
                   tabs={tabs}
                   activeId={activeId}
                   onSelect={setActiveId}
-                  onClose={closeTab}
+                  onClose={requestClose}
                 />
                 <div className="flex-1 min-h-0 bg-[#1e1e1e] relative">
                   {activeFile ? (
@@ -213,6 +226,21 @@ export function IdeShell() {
                     </div>
                   )}
                 </div>
+                {confirmClose && (
+                  <UnsavedDialog
+                    name={confirmClose.name}
+                    onSave={() => {
+                      save(confirmClose.id);
+                      doClose(confirmClose.id);
+                      setConfirmClose(null);
+                    }}
+                    onDiscard={() => {
+                      doClose(confirmClose.id);
+                      setConfirmClose(null);
+                    }}
+                    onCancel={() => setConfirmClose(null)}
+                  />
+                )}
               </div>
             </Panel>
           </Group>
@@ -224,6 +252,74 @@ export function IdeShell() {
         column={cursor.column}
         dirty={isActiveDirty}
       />
+    </div>
+  );
+}
+
+function UnsavedDialog({
+  name,
+  onSave,
+  onDiscard,
+  onCancel,
+}: {
+  name: string;
+  onSave: () => void;
+  onDiscard: () => void;
+  onCancel: () => void;
+}) {
+  const saveBtnRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    saveBtnRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onCancel();
+      }
+    };
+    window.addEventListener("keydown", onKey, { capture: true });
+    return () =>
+      window.removeEventListener("keydown", onKey, { capture: true });
+  }, [onCancel]);
+
+  return (
+    <div className="absolute inset-0 z-50 grid place-items-center bg-black/40">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="unsaved-title"
+        className="w-[420px] rounded-md bg-[#252526] border border-white/10 shadow-2xl text-[13px] text-[#cccccc]"
+      >
+        <div className="px-5 pt-5 pb-3 space-y-2">
+          <div id="unsaved-title" className="font-semibold text-white">
+            {name}의 변경 사항을 저장하시겠습니까?
+          </div>
+          <div className="text-[12px] text-[#969696]">
+            저장하지 않으면 변경 사항이 손실됩니다.
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 px-4 py-3 bg-[#2d2d2d] rounded-b-md">
+          <button
+            onClick={onCancel}
+            className="px-3 py-1.5 rounded-sm bg-transparent hover:bg-white/10 border border-white/10"
+          >
+            취소
+          </button>
+          <button
+            onClick={onDiscard}
+            className="px-3 py-1.5 rounded-sm bg-[#3c3c3c] hover:bg-[#4a4a4a]"
+          >
+            저장 안 함
+          </button>
+          <button
+            ref={saveBtnRef}
+            onClick={onSave}
+            className="px-3 py-1.5 rounded-sm bg-[#0e639c] hover:bg-[#1177bb] text-white"
+          >
+            저장
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
