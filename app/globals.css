@@ -18,6 +18,13 @@ body {
   height: 100%;
 }
 
+/* VS Code 스타일 UI 전체 확대 — Cmd+= 를 2단계 정도 누른 느낌.
+   CSS zoom은 폰트/박스/레이아웃을 전부 같이 스케일해서 하드코딩 px 값들이
+   비율 유지됨. 값을 바꾸면 줌 단계가 변한다: 1.0(기본) / 1.1(1단계) / 1.2(2단계). */
+html {
+  zoom: 1.2;
+}
+
 body {
   font-family: var(--font-geist-mono), Menlo, Consolas, monospace;
   font-size: 13px;
