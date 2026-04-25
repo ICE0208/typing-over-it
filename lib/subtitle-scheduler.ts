@@ -9,8 +9,6 @@ import {
 export class SubtitleScheduler {
   private phase: Phase = "idle";
   private currentRule: RuleCategory | null = null;
-  private lastRule: RuleCategory | null = null;
-  private secondLastRule: RuleCategory | null = null;
   private lastIdxByCategory: Map<RuleCategory, number> = new Map();
 
   private phaseTimer: ReturnType<typeof setTimeout> | null = null;
@@ -27,7 +25,7 @@ export class SubtitleScheduler {
 
   /**
    * 자동 감지 또는 수동 트리거가 새 룰을 쏠 때.
-   * - opts.force=true 면 모든 게이트(페이드아웃·페이드인·우선순위·연속 2회)를 무시하고
+   * - opts.force=true 면 모든 게이트(페이드아웃·페이드인·우선순위)를 무시하고
    *   phase가 뭐든 즉시 현재 자막을 interrupt하고 새 자막을 띄운다.
    *   단 자막 풀이 비어있으면 보여줄 내용이 없으므로 스킵.
    */
@@ -73,14 +71,6 @@ export class SubtitleScheduler {
         console.log(
           `[TypingOverIt] [교체] 기존=${this.currentRule} → 새=${rule} (우선순위 더 높아서 즉시 interrupt)`
         );
-      }
-
-      // 연속 2회 제한: 직전 2회 모두 같은 룰이면 폐기
-      if (rule === this.lastRule && rule === this.secondLastRule) {
-        console.log(
-          `[TypingOverIt] [거절] rule=${rule} 이유=같은 룰이 연속 3번째 (리듬 보호, 스펙 §5.3)`
-        );
-        return;
       }
     } else if (this.phase !== "idle") {
       console.log(
@@ -129,8 +119,6 @@ export class SubtitleScheduler {
   private emit(rule: RuleCategory, pair: CaptionPair) {
     this.clearPhaseTimer();
 
-    this.secondLastRule = this.lastRule;
-    this.lastRule = rule;
     this.currentRule = rule;
     this.phase = "easing-in";
 
