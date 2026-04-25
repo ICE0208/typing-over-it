@@ -45,7 +45,6 @@ export function IdeShell() {
   const [cursor, setCursor] = useState({ line: 1, column: 1 });
   // file tree panel 너비 (드래그 가능). VS Code 처럼 col-resize 핸들로 조정.
   const [treeWidth, setTreeWidth] = useState(280);
-  const [savedFlash, setSavedFlash] = useState<string | null>(null);
   const [confirmClose, setConfirmClose] = useState<{
     id: string;
     name: string;
@@ -274,10 +273,6 @@ export function IdeShell() {
       return { ...prev, [id]: { ...cur, original: cur.value } };
     });
     setTree((t) => applyOverrides(t, { [id]: file.value }));
-    setSavedFlash(file.name);
-    window.setTimeout(() => {
-      setSavedFlash((s) => (s === file.name ? null : s));
-    }, 1400);
   }, []);
 
   const saveActive = useCallback(() => {
@@ -365,11 +360,6 @@ export function IdeShell() {
                   />
                 ) : (
                   <Welcome />
-                )}
-                {savedFlash && (
-                  <div className="absolute bottom-3 right-3 px-3 py-1.5 rounded-md bg-[#252526] border border-white/10 text-[12px] text-[#cccccc] shadow-lg">
-                    💾 {savedFlash} 저장됨
-                  </div>
                 )}
                 <SubtitleOverlay />
               </div>
