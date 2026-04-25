@@ -2,84 +2,66 @@ import type { RuleCategory } from "./trigger-config";
 
 export type CaptionPair = { ko: string; en: string };
 
-// 02_CAPTION_BANK.md의 카테고리별 한/영 문장을 페어링한 것.
-// §9 "데모용 강한 5개"의 명시 페어를 기본으로, §2~§6의 개별 문장을 조합해
-// 각 카테고리마다 3~5개의 쌍을 만든다. §10 "Flip Examples"도 일부 흡수.
+// Getting Over It(항아리) 내레이션의 tone / pacing / emotional direction을
+// 차용해 새로 작성한 한·영 페어.
+// 원칙(README §5 원칙 4·5):
+//   - Bennett Foddy 원문 직인용 금지
+//   - seed에서 차용할 것: tone, structure, pacing, emotional direction만
+//   - 한국어 ≤ 25자, 영어 ≤ 60자 (02_CAPTION_BANK.md §1)
+//   - 한국어: 짧고 정확한 리액션/정서
+//   - 영어: 차분한 관찰 + 철학적 펀치라인
+//   - 두 줄은 같은 말을 반복하지 않고 서로 보완
 export const captionBank: Record<RuleCategory, CaptionPair[]> = {
   panic: [
-    {
-      ko: "손은 급해졌습니다. 머리는 아직 합류하지 못했습니다.",
-      en: "Your hands are moving. Your plan isn't.",
-    },
-    {
-      ko: "지금은 생산성이 아니라 속도만 존재합니다.",
-      en: "Fast typing is one of the oldest disguises for confusion.",
-    },
-    {
-      ko: "당신은 전진 중이 아닙니다. 단지 빠르게 흔들리고 있을 뿐입니다.",
-      en: "You typed with conviction for three seconds.",
-    },
-    {
-      ko: "근데 손만 먼저 갔죠.",
-      en: "Your hands are moving. Your plan isn't.",
-    },
+    { ko: "속도는 방향이 아닙니다.",              en: "Speed is not direction." },
+    { ko: "손이 머리를 기다리고 있지 않습니다.",  en: "Your hands did not wait for a plan." },
+    { ko: "진전인지 진동인지 구분이 가지 않는군요.", en: "This could be progress. It could be shaking." },
+    { ko: "질주는 멋지죠, 방향이 있을 때는요.",   en: "Running is admirable. Running somewhere, more so." },
+    { ko: "키보드만 확신에 차 있습니다.",          en: "The keyboard is the only confident thing here." },
+    { ko: "빨라진 건 손가락뿐입니다.",             en: "Only your fingers got faster." },
+    { ko: "이건 코딩이 아니라 도주 같군요.",       en: "This reads less like coding, more like fleeing." },
+    { ko: "속도로 덮을 수 있는 결함이 아닙니다.",  en: "Some problems are not soluble at 22 keys per second." },
+    { ko: "앞으로 가는 게 아니라 멀어지고 있습니다.", en: "You're not advancing. You're receding, quickly." },
+    { ko: "빠른 입력은 생각의 알리바이일 뿐입니다.", en: "Typing fast is an alibi for thinking slowly." },
   ],
   backspace: [
-    {
-      ko: "백스페이스가 오늘 가장 성실한 팀원입니다.",
-      en: "You are not editing. You are retreating with rhythm.",
-    },
-    {
-      ko: "문장을 고치는 중이 아니라, 방금의 자신을 부정하는 중입니다.",
-      en: "Regret has found a dedicated key.",
-    },
-    {
-      ko: "이 정도면 입력보다 철회가 더 많군요.",
-      en: "The line is cleaner now. The idea is not.",
-    },
-    {
-      ko: "근데 모든 걸 지운 건 아니죠.",
-      en: "You are not editing. You are retreating with rhythm.",
-    },
+    { ko: "백스페이스가 오늘 가장 부지런합니다.",  en: "Backspace has outworked everyone here today." },
+    { ko: "2초 전의 당신을 부정하는 중이군요.",    en: "You are at war with the version of you from two seconds ago." },
+    { ko: "쓰고 있는 게 아니라 사과하고 있습니다.", en: "You're not writing. You're apologizing." },
+    { ko: "작성보다 철회가 두 배 빠르네요.",       en: "The retreat is twice as fast as the advance." },
+    { ko: "문장이 완성되기 전에 포기합니다.",      en: "The sentence surrendered before the period arrived." },
+    { ko: "지우는 쪽이 더 명확한 의지를 갖고 있군요.", en: "Deleting is the clearest intention you've shown today." },
+    { ko: "커서는 당신이 놓은 것을 기억합니다.",   en: "The cursor remembers everything you gave up on." },
+    { ko: "후진에도 리듬이 있군요, 그것만은 좋습니다.", en: "There's rhythm in this retreat. Rhythm, at least." },
+    { ko: "방금 쓴 것을 방금 취소했습니다. 매번.", en: "Written, then unwritten. Done rhythmically." },
+    { ko: "문제는 문장이 아니라 확신 쪽입니다.",   en: "The sentence is fine. The conviction, less so." },
   ],
   silence: [
-    {
-      ko: "조용하군요. 처념의 침묵에 가깝습니다.",
-      en: "Silence. The part where confidence leaves the room.",
-    },
-    {
-      ko: "버그를 찾은 침묵일 수도 있습니다. 체념의 침묵일 가능성이 더 큽니다.",
-      en: "No movement. A familiar shape of defeat.",
-    },
-    {
-      ko: "지금 당신은 생각 중이라기보다 응시 중입니다.",
-      en: "You paused where certainty usually ends.",
-    },
-    {
-      ko: "거기서 다들 멈추죠.",
-      en: "Silence. The part where confidence leaves the room.",
-    },
+    { ko: "생각하는 게 아니라 응시하고 있습니다.", en: "This isn't thought. This is staring." },
+    { ko: "화면은 기다립니다. 그건 친절이 아닙니다.", en: "The screen is patient. That's not the same as kind." },
+    { ko: "커서도 조금 피곤해 보입니다.",           en: "Even the cursor looks tired now." },
+    { ko: "모든 멈춤이 시작의 전조는 아닙니다.",   en: "Not every pause is a prelude." },
+    { ko: "침묵이 길어지면 핑계는 짧아집니다.",    en: "The longer the silence, the shorter the excuse." },
+    { ko: "해결 중이 아닙니다. 애도 중입니다.",    en: "You're not solving. You're grieving, quietly." },
+    { ko: "해결의 침묵과 체념의 침묵은 모양이 다릅니다.", en: "Some silences solve. This one just sits there." },
+    { ko: "당신은 떠났습니다. 커서는 몰랐을 뿐이죠.", en: "You left. The cursor didn't get the memo." },
+    { ko: "정지 화면 뒤에서 결심이 사라지고 있습니다.", en: "Behind the still screen, resolve is quietly leaving." },
+    { ko: "30초 동안 아무 일도 일어나지 않았습니다.", en: "Thirty seconds of absolutely nothing. Catalogued." },
   ],
   // Rule D는 스코프 밖. 풀이 비어있으면 scheduler가 발화를 스킵한다.
   noise: [],
-  // Rule E(Esc/Enter/Space 연타/꾹 누름)는 §6 Retry Loop 풀을 재사용.
+  // Rule E — Esc/Enter/Space 연타/꾹 누름. 문제에 반응만 하고 있는 상태.
   keyrepeat: [
-    {
-      ko: "당신은 문제를 푼 것이 아니라, 더 작은 문제로 갈아탔습니다.",
-      en: "You found a smaller problem to avoid the real one.",
-    },
-    {
-      ko: "문제를 푸는 대신 이름을 바꾸고 있군요. 흔한 회피입니다.",
-      en: "Naming is where momentum goes to hide.",
-    },
-    {
-      ko: "변수명 하나가 오늘의 보스전이 되었습니다.",
-      en: "You renamed the function. The doubt remained.",
-    },
-    {
-      ko: "더 작은 문제로 갈아타는 속도가 인상적입니다.",
-      en: "You almost believed that fix.",
-    },
+    { ko: "반응하는 것과 푸는 것은 다릅니다.",     en: "Reacting is not solving. They just rhyme." },
+    { ko: "같은 키를 누르면 같은 대답이 옵니다.",  en: "Same key, same answer. Every single time." },
+    { ko: "엔터는 답이 아니라 질문입니다.",        en: "Enter is a question. It rarely answers." },
+    { ko: "Esc는 도망이 아니라, 좌석만 옮긴 것입니다.", en: "Escape moves the seat, not the problem." },
+    { ko: "컴파일러는 당신보다 참을성이 많습니다.", en: "The compiler has more patience than you do." },
+    { ko: "이건 디버깅이 아니라 기도 같군요.",     en: "This stopped being debugging. It became liturgy." },
+    { ko: "문을 세게 두드린다고 잠금이 풀리진 않습니다.", en: "Knocking harder is not how a locked door opens." },
+    { ko: "키보드는 협상하지 않습니다.",            en: "The keyboard is not negotiating with you." },
+    { ko: "더 작은 버튼을 찾아낸 속도는 인상적입니다.", en: "Impressive speed at finding something smaller to blame." },
+    { ko: "같은 키가 방금 전과 같은 기분을 준 건 아닙니다.", en: "The same key, but somehow angrier this time." },
   ],
 };
 
