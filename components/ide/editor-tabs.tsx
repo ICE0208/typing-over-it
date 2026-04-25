@@ -1,15 +1,7 @@
 "use client";
 
-import { X, FileCode, FileJson, FileText, File as FileIcon } from "lucide-react";
-
-function iconFor(name: string) {
-  const ext = name.split(".").pop()?.toLowerCase();
-  if (ext === "json") return <FileJson size={14} className="text-yellow-400" />;
-  if (ext === "md") return <FileText size={14} className="text-sky-400" />;
-  if (ext === "ts" || ext === "tsx" || ext === "js" || ext === "jsx")
-    return <FileCode size={14} className="text-blue-400" />;
-  return <FileIcon size={14} className="text-[#cccccc]" />;
-}
+import { X } from "lucide-react";
+import { FileIcon } from "./file-icon";
 
 export function EditorTabs({
   tabs,
@@ -36,7 +28,7 @@ export function EditorTabs({
                 : "bg-[#2d2d2d] text-[#969696] hover:text-white"
             }`}
           >
-            {iconFor(t.name)}
+            <FileIcon name={t.name} size={16} />
             <span>{t.name}</span>
             <button
               onClick={(e) => {

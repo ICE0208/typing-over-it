@@ -4,30 +4,12 @@ import { Tree, NodeRendererProps } from "react-arborist";
 import {
   ChevronRight,
   ChevronDown,
-  FileCode,
-  FileText,
-  FileJson,
-  File as FileIcon,
   FilePlus,
   FolderPlus,
 } from "lucide-react";
 import type { FsNode } from "@/lib/fake-fs";
 import { useEffect, useRef, useState } from "react";
-
-function iconFor(name: string, isFolder: boolean, isOpen: boolean) {
-  if (isFolder)
-    return isOpen ? (
-      <ChevronDown size={14} className="text-[#cccccc]" />
-    ) : (
-      <ChevronRight size={14} className="text-[#cccccc]" />
-    );
-  const ext = name.split(".").pop()?.toLowerCase();
-  if (ext === "json") return <FileJson size={14} className="text-yellow-400" />;
-  if (ext === "md") return <FileText size={14} className="text-sky-400" />;
-  if (ext === "ts" || ext === "tsx" || ext === "js" || ext === "jsx")
-    return <FileCode size={14} className="text-blue-400" />;
-  return <FileIcon size={14} className="text-[#cccccc]" />;
-}
+import { FileIcon } from "./file-icon";
 
 function Node({ node, style, dragHandle }: NodeRendererProps<FsNode>) {
   const isFolder = !!node.data.children;
@@ -59,7 +41,12 @@ function Node({ node, style, dragHandle }: NodeRendererProps<FsNode>) {
         ) : null}
       </div>
       <div className="grid place-items-center">
-        {iconFor(node.data.name, isFolder, node.isOpen)}
+        <FileIcon
+          name={node.data.name}
+          isFolder={isFolder}
+          isOpen={node.isOpen}
+          size={16}
+        />
       </div>
       <span className="truncate">{node.data.name}</span>
     </div>
