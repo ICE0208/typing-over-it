@@ -109,7 +109,7 @@ export function EditorPane({
       theme="vs-dark"
       options={{
         fontFamily: "var(--font-geist-mono), Menlo, Consolas, monospace",
-        fontSize: 13,
+        fontSize: 15,
         fontLigatures: true,
         minimap: { enabled: true },
         tabSize: 2,

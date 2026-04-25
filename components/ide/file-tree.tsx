@@ -59,6 +59,7 @@ export function FileTree({
   data,
   onSelect,
   onFolderSelect,
+  onDeselect,
   selectedId,
   onCreate,
   pendingCreateTarget,
@@ -66,8 +67,9 @@ export function FileTree({
   data: FsNode[];
   onSelect: (id: string) => void;
   onFolderSelect: (id: string) => void;
+  onDeselect: () => void;
   selectedId: string | null;
-  onCreate: (kind: "file" | "folder", name: string) => void;
+  onCreate: (kind: "file" | "folder", name: string) => "ok" | "duplicate";
   pendingCreateTarget: string | null;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -82,10 +84,32 @@ export function FileTree({
     const el = wrapRef.current;
     if (!el) return;
     const ro = new ResizeObserver(() => {
-      setSize({ w: el.clientWidth, h: el.clientHeight });
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      // 동일 값이면 setState 안 함 — react-arborist 내부 layout이 부모 크기를
+      // 바꿀 가능성에 대비한 무한 루프 가드
+      setSize((prev) => (prev.w === w && prev.h === h ? prev : { w, h }));
     });
     ro.observe(el);
     return () => ro.disconnect();
+  }, []);
+
+  // react-arborist의 가상 스크롤 컨테이너는 overflow:auto + 10px scrollbar가
+  // 만나 콘텐츠가 height에 borderline일 때 scrollbar 출현/사라짐이 무한 토글
+  // (width 315↔305px 진동) → DOM mutation이 초당 500+회 발생하며 SVG 재렌더로
+  // 깜빡임. scrollbar-gutter:stable로 자리를 미리 잡아 토글을 차단.
+  // (CSS 파일에도 같은 rule이 있으나 dev HMR 누락 시 안전망용으로 JS에서도 주입)
+  useEffect(() => {
+    const id = "ide-arborist-scrollbar-gutter";
+    if (document.getElementById(id)) return;
+    const style = document.createElement("style");
+    style.id = id;
+    style.textContent = `
+      div[style*="overflow: auto"][style*="will-change: transform"] {
+        scrollbar-gutter: stable;
+      }
+    `;
+    document.head.appendChild(style);
   }, []);
 
   useEffect(() => {
@@ -113,7 +137,12 @@ export function FileTree({
       setError("이름에 / 를 포함할 수 없습니다");
       return;
     }
-    onCreate(pending.kind, name);
+    const result = onCreate(pending.kind, name);
+    if (result === "duplicate") {
+      // 같은 위치에 같은 이름이 이미 있음 — input 유지하고 에러 표시
+      setError("같은 이름이 이미 있습니다");
+      return;
+    }
     cancelCreate();
   };
 
@@ -122,15 +151,16 @@ export function FileTree({
       <div className="px-4 py-2 text-[11px] uppercase tracking-wider text-[#cccccc]/70 flex items-center justify-between">
         <span>Explorer</span>
       </div>
-      {/* group: 호버 시 아이콘 노출. 항상 보이게 하고 싶으면 group-hover:opacity 를 빼면 됨 */}
-      <div className="px-4 pb-1 text-[11px] font-bold text-[#cccccc] flex items-center justify-between group">
+      {/* 아이콘은 항상 노출. (이전에 group-hover + opacity 트랜지션을 썼는데
+          CSS zoom 1.2와 트랜지션이 만나 Chrome에서 이중 페인트로 깜빡거림 발생 — 제거) */}
+      <div className="px-4 pb-1 text-[11px] font-bold text-[#cccccc] flex items-center justify-between">
         <span>IDE-DEMO</span>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={() => beginCreate("file")}
             title={`새 파일${pendingCreateTarget ? ` (${pendingCreateTarget})` : " (루트)"}`}
-            className="p-1 rounded-sm hover:bg-white/10 text-[#cccccc]"
+            className="p-1 rounded-sm hover:bg-white/10 text-[#cccccc]/70 hover:text-[#cccccc]"
           >
             <FilePlus size={14} />
           </button>
@@ -138,7 +168,7 @@ export function FileTree({
             type="button"
             onClick={() => beginCreate("folder")}
             title={`새 폴더${pendingCreateTarget ? ` (${pendingCreateTarget})` : " (루트)"}`}
-            className="p-1 rounded-sm hover:bg-white/10 text-[#cccccc]"
+            className="p-1 rounded-sm hover:bg-white/10 text-[#cccccc]/70 hover:text-[#cccccc]"
           >
             <FolderPlus size={14} />
           </button>
@@ -169,7 +199,9 @@ export function FileTree({
               e.stopPropagation();
             }}
             onBlur={() => {
-              // blur 시 submit이 아닌 cancel. Enter로만 확정.
+              // 에러 표시 중이면 blur로 닫지 않음 (사용자가 수정할 수 있게).
+              // Enter 또는 Esc로만 명시적 종료.
+              if (error) return;
               cancelCreate();
             }}
             placeholder={
@@ -183,7 +215,15 @@ export function FileTree({
         </div>
       )}
 
-      <div ref={wrapRef} className="flex-1 min-h-0">
+      <div
+        ref={wrapRef}
+        className="flex-1 min-h-0"
+        onClick={(e) => {
+          // 트리 빈 영역(treeitem 바깥) 클릭 시 선택 해제 → 새 파일/폴더 위치 = 루트
+          const onItem = (e.target as Element)?.closest?.('[role="treeitem"]');
+          if (!onItem) onDeselect();
+        }}
+      >
         <Tree
           data={data}
           openByDefault

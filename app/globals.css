@@ -1,4 +1,5 @@
 @import "tailwindcss";
+/* cache-bust: 2026-04-25 */
 
 @theme inline {
   --font-mono: var(--font-geist-mono);
@@ -18,16 +19,15 @@ body {
   height: 100%;
 }
 
-/* VS Code 스타일 UI 전체 확대 — Cmd+= 를 2단계 정도 누른 느낌.
-   CSS zoom은 폰트/박스/레이아웃을 전부 같이 스케일해서 하드코딩 px 값들이
-   비율 유지됨. 값을 바꾸면 줌 단계가 변한다: 1.0(기본) / 1.1(1단계) / 1.2(2단계). */
-html {
-  zoom: 1.2;
-}
+/* VS Code 스타일 UI 확대 — 기본 폰트 크기를 키워서 에디터·UI 텍스트를 키운다.
+   CSS zoom은 react-resizable-panels / react-arborist의 ResizeObserver와
+   서브픽셀 반올림 불일치를 일으켜 panel 크기가 오실레이팅하며 심한 깜빡임 유발.
+   그래서 zoom 대신 font-size를 직접 확대. 하드코딩 px 값(h-[30px] 등)은
+   그대로지만 텍스트가 커지는 것만으로도 체감 2단계 확대 효과. */
 
 body {
   font-family: var(--font-geist-mono), Menlo, Consolas, monospace;
-  font-size: 13px;
+  font-size: 15px;
   user-select: none;
 }
 
@@ -42,6 +42,14 @@ body {
 }
 ::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* react-arborist의 가상 스크롤 컨테이너 — overflow:auto + 10px 스크롤바가 만나
+   콘텐츠가 height에 borderline일 때 scrollbar 토글 무한 루프(width 315↔305)가
+   발생. scrollbar-gutter:stable로 자리를 미리 잡아두면 출현/사라짐과 상관없이
+   layout이 흔들리지 않는다. */
+div[style*="overflow: auto"][style*="will-change: transform"] {
+  scrollbar-gutter: stable;
 }
 
 /* react-resizable-panels handle */
@@ -71,3 +79,4 @@ body {
   transition: opacity 1500ms ease-out, filter 1500ms ease-out;
   filter: blur(0.5px) drop-shadow(0 0 8px rgba(255, 255, 255, 0.15));
 }
+ 

@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Group, Panel, Separator } from "react-resizable-panels";
 import { TitleBar } from "./title-bar";
 import { ActivityBar } from "./activity-bar";
 import { FileTree } from "./file-tree";
@@ -37,8 +36,15 @@ export function IdeShell() {
   const [openFiles, setOpenFiles] = useState<Record<string, OpenFile>>({});
   const [tabOrder, setTabOrder] = useState<string[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  // treeFocus: 트리에서 사용자가 명시적으로 클릭한 노드(파일이든 폴더든) id.
+  // - 파일 클릭 → 그 파일이 포커싱 (활성 탭으로도 열림)
+  // - 폴더 클릭 → 그 폴더만 포커싱 (탭 안 열림)
+  // - 트리 빈 영역 클릭 → null (포커싱 해제)
+  // - 자동 오픈된 페이지(mount 시)는 treeFocus를 건드리지 않음 → 초기에는 null
+  const [treeFocus, setTreeFocus] = useState<string | null>(null);
   const [cursor, setCursor] = useState({ line: 1, column: 1 });
+  // file tree panel 너비 (드래그 가능). VS Code 처럼 col-resize 핸들로 조정.
+  const [treeWidth, setTreeWidth] = useState(280);
   const [savedFlash, setSavedFlash] = useState<string | null>(null);
   const [confirmClose, setConfirmClose] = useState<{
     id: string;
@@ -86,22 +92,27 @@ export function IdeShell() {
     [tabOrder, openFiles]
   );
 
-  // 새 파일/폴더를 생성할 부모 폴더 id 계산.
-  // 우선순위: 1) 트리에서 선택된 폴더 → 2) 활성 파일의 부모 폴더 → 3) 루트(null)
-  const parentIdForCreate = useMemo((): string | null => {
-    if (selectedFolderId) return selectedFolderId;
-    if (!activeId) return null;
-    const idx = activeId.lastIndexOf("/");
-    return idx === -1 ? null : activeId.slice(0, idx);
-  }, [selectedFolderId, activeId]);
+  // 새 파일/폴더를 생성할 부모 폴더 id.
+  // 단일 treeFocus에서 도출:
+  //   - treeFocus === null  → null (루트)
+  //   - treeFocus가 폴더    → 그 폴더 자체
+  //   - treeFocus가 파일    → 그 파일의 부모 폴더 (id에서 마지막 / 자르기)
+  const parentIdForCreate = useMemo<string | null>(() => {
+    if (!treeFocus) return null;
+    const node = findNode(tree, treeFocus);
+    if (!node) return null;
+    if (node.children) return treeFocus;
+    const idx = treeFocus.lastIndexOf("/");
+    return idx === -1 ? null : treeFocus.slice(0, idx);
+  }, [treeFocus, tree]);
 
   const handleCreate = useCallback(
-    (kind: "file" | "folder", name: string) => {
+    (kind: "file" | "folder", name: string): "ok" | "duplicate" => {
       const parentId = parentIdForCreate;
       const id = parentId ? `${parentId}/${name}` : name;
       if (findNode(tree, id)) {
-        // 중복 — 조용히 무시
-        return;
+        // 같은 부모 안에 같은 이름이 이미 있음 → file-tree에서 input 유지 + 에러 표시
+        return "duplicate";
       }
       const node: AddedNode = {
         id,
@@ -121,8 +132,8 @@ export function IdeShell() {
         overrides
       );
       setTree(next);
-      // 파일이면 바로 오픈 + 폴더 선택 해제.
-      // 폴더면 그 폴더를 선택 상태로 만들어서 "그 안에 이어서 생성"이 자연스럽게.
+      // 파일이면 바로 오픈하고 그 파일을 트리 포커스로.
+      // 폴더면 그 폴더를 트리 포커스로 만들어 "그 안에 이어서 생성" 흐름 보장.
       if (kind === "file") {
         setOpenFiles((prev) => ({
           ...prev,
@@ -138,10 +149,11 @@ export function IdeShell() {
           prev.includes(id) ? prev : [...prev, id]
         );
         setActiveId(id);
-        setSelectedFolderId(null);
+        setTreeFocus(id);
       } else {
-        setSelectedFolderId(id);
+        setTreeFocus(id);
       }
+      return "ok";
     },
     [parentIdForCreate, tree]
   );
@@ -166,13 +178,43 @@ export function IdeShell() {
       });
       setTabOrder((prev) => (prev.includes(id) ? prev : [...prev, id]));
       setActiveId(id);
-      setSelectedFolderId(null); // 파일 열면 폴더 선택 해제
+      // 트리에서 파일 클릭 → 그 파일 자체가 트리 포커스 (visual highlight + 부모로 새 파일 위치 도출)
+      setTreeFocus(id);
     },
     [tree]
   );
 
+  // file tree panel 드래그 리사이즈
+  const onResizeMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      const startX = e.clientX;
+      const startW = treeWidth;
+      const onMove = (ev: MouseEvent) => {
+        const dx = ev.clientX - startX;
+        const next = Math.max(160, Math.min(600, startW + dx));
+        setTreeWidth(next);
+      };
+      const onUp = () => {
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      };
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    },
+    [treeWidth]
+  );
+
   const handleFolderSelect = useCallback((id: string) => {
-    setSelectedFolderId(id);
+    setTreeFocus(id);
+  }, []);
+
+  const handleTreeDeselect = useCallback(() => {
+    setTreeFocus(null);
   }, []);
 
   const doClose = useCallback((id: string) => {
@@ -283,63 +325,71 @@ export function IdeShell() {
       <div className="flex-1 min-h-0 flex">
         <ActivityBar />
         <div className="flex-1 min-w-0">
-          <Group orientation="horizontal" className="h-full">
-            <Panel defaultSize="18%" minSize="12%" maxSize="40%">
+          {/*
+            react-resizable-panels는 sub-pixel rounding 피드백 루프로 10px 진동
+            깜빡임을 일으켜 제거. 대신 직접 드래그 핸들로 구현.
+            mousemove 동안 RAF 없이 setState만 호출 → 진동 없음.
+          */}
+          <div className="h-full flex">
+            <div style={{ width: treeWidth }} className="shrink-0 h-full">
               <FileTree
                 data={tree}
                 onSelect={openFile}
                 onFolderSelect={handleFolderSelect}
-                selectedId={selectedFolderId ?? activeId}
+                onDeselect={handleTreeDeselect}
+                selectedId={treeFocus ?? activeId}
                 onCreate={handleCreate}
                 pendingCreateTarget={parentIdForCreate}
               />
-            </Panel>
-            <Separator className="w-[1px]" />
-            <Panel defaultSize="82%" minSize="40%">
-              <div className="h-full flex flex-col">
-                <EditorTabs
-                  tabs={tabs}
-                  activeId={activeId}
-                  onSelect={setActiveId}
-                  onClose={requestClose}
-                />
-                <div className="flex-1 min-h-0 bg-[#1e1e1e] relative">
-                  {activeFile ? (
-                    <EditorPane
-                      path={activeFile.id}
-                      value={activeFile.value}
-                      language={activeFile.language}
-                      onChange={updateContent}
-                      onSave={saveActive}
-                    />
-                  ) : (
-                    <Welcome />
-                  )}
-                  {savedFlash && (
-                    <div className="absolute bottom-3 right-3 px-3 py-1.5 rounded-md bg-[#252526] border border-white/10 text-[12px] text-[#cccccc] shadow-lg">
-                      💾 {savedFlash} 저장됨
-                    </div>
-                  )}
-                  <SubtitleOverlay />
-                </div>
-                {confirmClose && (
-                  <UnsavedDialog
-                    name={confirmClose.name}
-                    onSave={() => {
-                      save(confirmClose.id);
-                      doClose(confirmClose.id);
-                      setConfirmClose(null);
-                    }}
-                    onDiscard={() => {
-                      doClose(confirmClose.id);
-                      setConfirmClose(null);
-                    }}
-                    onCancel={() => setConfirmClose(null)}
+            </div>
+            <div
+              onMouseDown={onResizeMouseDown}
+              title="드래그해서 너비 조정"
+              className="w-1 shrink-0 cursor-col-resize bg-[#1e1e1e] hover:bg-[#007acc] transition-colors"
+            />
+            <div className="flex-1 min-w-0 h-full flex flex-col">
+              <EditorTabs
+                tabs={tabs}
+                activeId={activeId}
+                onSelect={setActiveId}
+                onClose={requestClose}
+              />
+              <div className="flex-1 min-h-0 bg-[#1e1e1e] relative">
+                {activeFile ? (
+                  <EditorPane
+                    path={activeFile.id}
+                    value={activeFile.value}
+                    language={activeFile.language}
+                    onChange={updateContent}
+                    onSave={saveActive}
                   />
+                ) : (
+                  <Welcome />
                 )}
+                {savedFlash && (
+                  <div className="absolute bottom-3 right-3 px-3 py-1.5 rounded-md bg-[#252526] border border-white/10 text-[12px] text-[#cccccc] shadow-lg">
+                    💾 {savedFlash} 저장됨
+                  </div>
+                )}
+                <SubtitleOverlay />
               </div>
-            </Panel>
-          </Group>
+              {confirmClose && (
+                <UnsavedDialog
+                  name={confirmClose.name}
+                  onSave={() => {
+                    save(confirmClose.id);
+                    doClose(confirmClose.id);
+                    setConfirmClose(null);
+                  }}
+                  onDiscard={() => {
+                    doClose(confirmClose.id);
+                    setConfirmClose(null);
+                  }}
+                  onCancel={() => setConfirmClose(null)}
+                />
+              )}
+            </div>
+          </div>
         </div>
       </div>
       <StatusBar

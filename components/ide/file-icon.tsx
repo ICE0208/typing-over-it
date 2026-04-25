@@ -1,7 +1,7 @@
 "use client";
 
 import { Icon, addCollection } from "@iconify/react";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 
 // Material Icon Theme (VSCode 플러그인과 동일 소스)을 Iconify로 사용.
 // 891KB JSON을 초기 번들에 포함하지 않도록 클라이언트에서 동적으로 1회만 로드.
@@ -149,7 +149,9 @@ type Props = {
   className?: string;
 };
 
-export function FileIcon({
+// React.memo로 감싸서 부모가 무관한 사유로 재렌더할 때 SVG 재생성 비용을 차단.
+// 같은 (name, isFolder, isOpen, size, className) 조합이면 이전 SVG 그대로 유지.
+export const FileIcon = memo(function FileIcon({
   name,
   isFolder = false,
   isOpen = false,
@@ -187,4 +189,4 @@ export function FileIcon({
       className={className}
     />
   );
-}
+});
