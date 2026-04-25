@@ -8,6 +8,8 @@ import { FileTree } from "./file-tree";
 import { EditorTabs } from "./editor-tabs";
 import { EditorPane } from "./editor-pane";
 import { StatusBar } from "./status-bar";
+import { SubtitleOverlay } from "./subtitle-overlay";
+import { TypingEngineHost } from "./typing-engine-host";
 import {
   applyOverrides,
   findNode,
@@ -187,6 +189,7 @@ export function IdeShell() {
 
   return (
     <div className="h-screen w-screen flex flex-col bg-[#1e1e1e] text-[#cccccc]">
+      <TypingEngineHost />
       <TitleBar />
       <div className="flex-1 min-h-0 flex">
         <ActivityBar />
@@ -225,6 +228,7 @@ export function IdeShell() {
                       💾 {savedFlash} 저장됨
                     </div>
                   )}
+                  <SubtitleOverlay />
                 </div>
                 {confirmClose && (
                   <UnsavedDialog

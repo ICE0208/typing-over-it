@@ -46,3 +46,21 @@ body {
 [data-panel-resize-handle-enabled][data-resize-handle-active] {
   background: var(--color-vs-accent);
 }
+
+/* Typing Over It — subtitle overlay */
+.caption-bar {
+  opacity: 0;
+  filter: none;
+  transition: opacity 200ms ease-in, filter 200ms ease-in;
+  text-shadow: 0 0 12px rgba(0, 0, 0, 0.6);
+  will-change: opacity, filter;
+}
+.caption-bar[data-phase="easing-in"],
+.caption-bar[data-phase="holding"] {
+  opacity: 1;
+}
+.caption-bar[data-phase="fading-out"] {
+  opacity: 0;
+  transition: opacity 1500ms ease-out, filter 1500ms ease-out;
+  filter: blur(0.5px) drop-shadow(0 0 8px rgba(255, 255, 255, 0.15));
+}
