@@ -173,8 +173,17 @@ npm run dev
 ];
 
 const STORAGE_KEY = "ide-demo:overrides:v1";
+const ADDED_KEY = "ide-demo:added:v1";
 
 export type Overrides = Record<string, string>;
+
+export type AddedNode = {
+  id: string;
+  parentId: string | null; // null → 루트
+  name: string;
+  isFolder: boolean;
+  language?: string;
+};
 
 export function loadOverrides(): Overrides {
   if (typeof window === "undefined") return {};
@@ -193,6 +202,64 @@ export function saveOverride(id: string, content: string) {
   const current = loadOverrides();
   current[id] = content;
   window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(current));
+}
+
+export function loadAdditions(): AddedNode[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.sessionStorage.getItem(ADDED_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveAddition(node: AddedNode) {
+  if (typeof window === "undefined") return;
+  const current = loadAdditions();
+  current.push(node);
+  window.sessionStorage.setItem(ADDED_KEY, JSON.stringify(current));
+}
+
+// 저장된 AddedNode 목록을 tree에 합성. parentId 기준으로 해당 폴더의 자식으로 삽입.
+// 폴더 addition이 중첩된 경우(폴더 만들고 그 안에 파일 만들기)도 재귀로 처리.
+export function applyAdditions(
+  tree: FsNode[],
+  additions: AddedNode[]
+): FsNode[] {
+  if (additions.length === 0) return tree;
+
+  const byParent = new Map<string | null, AddedNode[]>();
+  for (const a of additions) {
+    const arr = byParent.get(a.parentId) ?? [];
+    arr.push(a);
+    byParent.set(a.parentId, arr);
+  }
+
+  function toFsNode(a: AddedNode): FsNode {
+    if (a.isFolder) {
+      return { id: a.id, name: a.name, children: walk([], a.id) };
+    }
+    return {
+      id: a.id,
+      name: a.name,
+      language: a.language ?? languageFromName(a.name),
+      content: "",
+    };
+  }
+
+  function walk(nodes: FsNode[], parentId: string | null): FsNode[] {
+    const mapped = nodes.map((n) =>
+      n.children ? { ...n, children: walk(n.children, n.id) } : n
+    );
+    const toAddHere = byParent.get(parentId) ?? [];
+    if (toAddHere.length === 0) return mapped;
+    return [...mapped, ...toAddHere.map(toFsNode)];
+  }
+
+  return walk(tree, null);
 }
 
 export function applyOverrides(tree: FsNode[], overrides: Overrides): FsNode[] {

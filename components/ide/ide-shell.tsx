@@ -11,12 +11,16 @@ import { StatusBar } from "./status-bar";
 import { SubtitleOverlay } from "./subtitle-overlay";
 import { TypingEngineHost } from "./typing-engine-host";
 import {
+  applyAdditions,
   applyOverrides,
   findNode,
   initialTree,
   languageFromName,
+  loadAdditions,
   loadOverrides,
+  saveAddition,
   saveOverride,
+  type AddedNode,
   type FsNode,
 } from "@/lib/fake-fs";
 
@@ -33,6 +37,7 @@ export function IdeShell() {
   const [openFiles, setOpenFiles] = useState<Record<string, OpenFile>>({});
   const [tabOrder, setTabOrder] = useState<string[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [cursor, setCursor] = useState({ line: 1, column: 1 });
   const [savedFlash, setSavedFlash] = useState<string | null>(null);
   const [confirmClose, setConfirmClose] = useState<{
@@ -40,11 +45,30 @@ export function IdeShell() {
     name: string;
   } | null>(null);
 
-  // Apply persisted overrides on mount (client-only — avoids hydration mismatch)
+  // Mount: addition 적용 + override 적용 + 기본 파일 자동 오픈.
+  // 한 effect 안에서 tree 계산해야 race 없이 defaultId lookup 가능.
   useEffect(() => {
+    const additions = loadAdditions();
     const overrides = loadOverrides();
-    if (Object.keys(overrides).length === 0) return;
-    setTree((t) => applyOverrides(t, overrides));
+    const withAdds = applyAdditions(initialTree, additions);
+    const nextTree = applyOverrides(withAdds, overrides);
+    if (nextTree !== initialTree) setTree(nextTree);
+
+    const defaultId = "src/app/page.tsx";
+    const node = findNode(nextTree, defaultId);
+    if (!node || node.children) return;
+    const content = node.content ?? "";
+    setOpenFiles({
+      [defaultId]: {
+        id: defaultId,
+        name: node.name,
+        language: node.language ?? languageFromName(node.name),
+        value: content,
+        original: content,
+      },
+    });
+    setTabOrder([defaultId]);
+    setActiveId(defaultId);
   }, []);
 
   const activeFile = activeId ? openFiles[activeId] : null;
@@ -60,6 +84,66 @@ export function IdeShell() {
           dirty: f.value !== f.original,
         })),
     [tabOrder, openFiles]
+  );
+
+  // 새 파일/폴더를 생성할 부모 폴더 id 계산.
+  // 우선순위: 1) 트리에서 선택된 폴더 → 2) 활성 파일의 부모 폴더 → 3) 루트(null)
+  const parentIdForCreate = useMemo((): string | null => {
+    if (selectedFolderId) return selectedFolderId;
+    if (!activeId) return null;
+    const idx = activeId.lastIndexOf("/");
+    return idx === -1 ? null : activeId.slice(0, idx);
+  }, [selectedFolderId, activeId]);
+
+  const handleCreate = useCallback(
+    (kind: "file" | "folder", name: string) => {
+      const parentId = parentIdForCreate;
+      const id = parentId ? `${parentId}/${name}` : name;
+      if (findNode(tree, id)) {
+        // 중복 — 조용히 무시
+        return;
+      }
+      const node: AddedNode = {
+        id,
+        parentId,
+        name,
+        isFolder: kind === "folder",
+        ...(kind === "file"
+          ? { language: languageFromName(name) }
+          : {}),
+      };
+      saveAddition(node);
+      // tree 재계산
+      const additions = loadAdditions();
+      const overrides = loadOverrides();
+      const next = applyOverrides(
+        applyAdditions(initialTree, additions),
+        overrides
+      );
+      setTree(next);
+      // 파일이면 바로 오픈 + 폴더 선택 해제.
+      // 폴더면 그 폴더를 선택 상태로 만들어서 "그 안에 이어서 생성"이 자연스럽게.
+      if (kind === "file") {
+        setOpenFiles((prev) => ({
+          ...prev,
+          [id]: {
+            id,
+            name,
+            language: languageFromName(name),
+            value: "",
+            original: "",
+          },
+        }));
+        setTabOrder((prev) =>
+          prev.includes(id) ? prev : [...prev, id]
+        );
+        setActiveId(id);
+        setSelectedFolderId(null);
+      } else {
+        setSelectedFolderId(id);
+      }
+    },
+    [parentIdForCreate, tree]
   );
 
   const openFile = useCallback(
@@ -82,9 +166,14 @@ export function IdeShell() {
       });
       setTabOrder((prev) => (prev.includes(id) ? prev : [...prev, id]));
       setActiveId(id);
+      setSelectedFolderId(null); // 파일 열면 폴더 선택 해제
     },
     [tree]
   );
+
+  const handleFolderSelect = useCallback((id: string) => {
+    setSelectedFolderId(id);
+  }, []);
 
   const doClose = useCallback((id: string) => {
     setTabOrder((prev) => {
@@ -199,7 +288,10 @@ export function IdeShell() {
               <FileTree
                 data={tree}
                 onSelect={openFile}
-                selectedId={activeId}
+                onFolderSelect={handleFolderSelect}
+                selectedId={selectedFolderId ?? activeId}
+                onCreate={handleCreate}
+                pendingCreateTarget={parentIdForCreate}
               />
             </Panel>
             <Separator className="w-[1px]" />
