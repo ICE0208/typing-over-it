@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@google/genai": "^1.50.1",
     "@iconify-json/material-icon-theme": "^1.2.60",
     "@iconify/react": "^6.0.2",
     "@monaco-editor/react": "^4.7.0",

@@ -34,8 +34,13 @@ const SILENCE_RESET_KEYS = new Set([
 
 const KEYREPEAT_KEYS = new Set<string>(TRIGGER.keyRepeat.keys);
 
+export type TriggerMeta = {
+  reason: string;
+  metrics: Record<string, number | string>;
+};
+
 export type TypingDetectorOptions = {
-  onTrigger: (rule: RuleHit) => void;
+  onTrigger: (rule: RuleHit, meta: TriggerMeta) => void;
 };
 
 function prune(buf: number[], cutoff: number) {
@@ -129,10 +134,14 @@ export class TypingDetector {
       this.keystrokes1s.push(now);
       prune(this.keystrokes1s, now - TRIGGER.panic.windowMs);
       if (this.keystrokes1s.length >= TRIGGER.panic.threshold) {
+        const count = this.keystrokes1s.length;
         console.log(
-          `[TypingOverIt] [A/패닉] 손이 머리보다 빨라졌습니다 — 최근 1초 안에 ${this.keystrokes1s.length}타 (임계 ${TRIGGER.panic.threshold})`
+          `[TypingOverIt] [A/패닉] 손이 머리보다 빨라졌습니다 — 최근 1초 안에 ${count}타 (임계 ${TRIGGER.panic.threshold})`
         );
-        this.opts.onTrigger("panic");
+        this.opts.onTrigger("panic", {
+          reason: `User typed ${count} characters within 1 second (threshold ${TRIGGER.panic.threshold})`,
+          metrics: { keystrokesPerSec: count, threshold: TRIGGER.panic.threshold },
+        });
         // 연속 발화 방지: 윈도우 비우기
         this.keystrokes1s.length = 0;
       }
@@ -144,10 +153,14 @@ export class TypingDetector {
         this.backspaces1s.push(now);
         prune(this.backspaces1s, now - TRIGGER.backspace.windowMs);
         if (this.backspaces1s.length >= TRIGGER.backspace.burstThreshold) {
+          const count = this.backspaces1s.length;
           console.log(
-            `[TypingOverIt] [B/백스페이스-연타] 수정 지옥 — 최근 1초 안에 Backspace ${this.backspaces1s.length}회 (임계 ${TRIGGER.backspace.burstThreshold})`
+            `[TypingOverIt] [B/백스페이스-연타] 수정 지옥 — 최근 1초 안에 Backspace ${count}회 (임계 ${TRIGGER.backspace.burstThreshold})`
           );
-          this.opts.onTrigger("backspace");
+          this.opts.onTrigger("backspace", {
+            reason: `Backspace was pressed ${count} times within 1 second`,
+            metrics: { backspaceCount: count, windowMs: TRIGGER.backspace.windowMs },
+          });
           this.backspaces1s.length = 0;
         }
         this.startHoldTimer("Backspace", TRIGGER.backspace.holdMs, "backspace");
@@ -166,10 +179,14 @@ export class TypingDetector {
         prune(buf, now - TRIGGER.keyRepeat.windowMs);
         if (buf.length >= TRIGGER.keyRepeat.burstThreshold) {
           const label = key === " " ? "Space" : key;
+          const count = buf.length;
           console.log(
-            `[TypingOverIt] [E/키-연타] 문제에 반응만 하는 중 — ${label} 1초에 ${buf.length}회 (임계 ${TRIGGER.keyRepeat.burstThreshold})`
+            `[TypingOverIt] [E/키-연타] 문제에 반응만 하는 중 — ${label} 1초에 ${count}회 (임계 ${TRIGGER.keyRepeat.burstThreshold})`
           );
-          this.opts.onTrigger("keyrepeat");
+          this.opts.onTrigger("keyrepeat", {
+            reason: `${label} was pressed ${count} times within 1 second`,
+            metrics: { key: label, count, windowMs: TRIGGER.keyRepeat.windowMs },
+          });
           buf.length = 0;
         }
         this.startHoldTimer(key, TRIGGER.keyRepeat.holdMs, "keyrepeat");
@@ -194,7 +211,10 @@ export class TypingDetector {
       console.log(
         `[TypingOverIt] [${rule === "backspace" ? "B" : "E"}/꾹-누름] ${meaning} — ${label} 키를 ${ms}ms 이상 누르고 있음`
       );
-      this.opts.onTrigger(rule);
+      this.opts.onTrigger(rule, {
+        reason: `${label} key was held down for at least ${ms}ms`,
+        metrics: { key: label, holdMs: ms },
+      });
     }, ms);
     this.holdTimers.set(key, t);
   }
@@ -243,9 +263,16 @@ export class TypingDetector {
     );
     if (!hasPrior) return;
 
+    const sinceLast = Math.round(now - last);
     console.log(
-      `[TypingOverIt] [C/침묵] 갑자기 멈췄습니다 — 마지막 입력 이후 ${Math.round(now - last)}ms 경과 (임계 ${TRIGGER.silence.silenceMs}ms)`
+      `[TypingOverIt] [C/침묵] 갑자기 멈췄습니다 — 마지막 입력 이후 ${sinceLast}ms 경과 (임계 ${TRIGGER.silence.silenceMs}ms)`
     );
-    this.opts.onTrigger("silence");
+    this.opts.onTrigger("silence", {
+      reason: `User stopped typing ${sinceLast}ms ago after a burst of activity`,
+      metrics: {
+        silenceMs: sinceLast,
+        thresholdMs: TRIGGER.silence.silenceMs,
+      },
+    });
   }
 }

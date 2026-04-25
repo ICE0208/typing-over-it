@@ -13,6 +13,7 @@ import {
   applyAdditions,
   applyOverrides,
   findNode,
+  getSiblings,
   initialTree,
   languageFromName,
   loadAdditions,
@@ -22,6 +23,7 @@ import {
   type AddedNode,
   type FsNode,
 } from "@/lib/fake-fs";
+import { editorContextRef } from "@/lib/editor-context-ref";
 
 type OpenFile = {
   id: string;
@@ -257,11 +259,48 @@ export function IdeShell() {
         if (!cur) return prev;
         return { ...prev, [activeId]: { ...cur, value: v } };
       });
-      const lines = v.split("\n");
-      setCursor({ line: lines.length, column: (lines.at(-1)?.length ?? 0) + 1 });
+      // 가짜 끝줄 cursor 계산은 제거 — Monaco의 onCursorChange가 진짜 위치를 publish.
     },
     [activeId]
   );
+
+  // EditorPane이 publish하는 진짜 cursor 위치를 받아 ide-shell 상태에 반영.
+  const onEditorCursorChange = useCallback(
+    (line: number, column: number) => {
+      setCursor({ line, column });
+    },
+    []
+  );
+
+  // 활성 파일 / cursor / tree 변경 시 LLM 컨텍스트 ref 갱신.
+  // editorContextRef는 trigger 시점에 koan-prompt가 즉석 추출.
+  useEffect(() => {
+    if (!activeFile) {
+      editorContextRef.set(null);
+      return;
+    }
+    const lines = activeFile.value.split("\n");
+    // cursor 주변 ±5줄, 빈 줄 제외하면서 cursor 라인은 무조건 포함.
+    // 입력 토큰 줄여 LLM latency 단축. 너무 줄이면 컨텍스트 약해지므로 5가 균형.
+    const cursorIdx = Math.max(0, Math.min(lines.length - 1, cursor.line - 1));
+    const start = Math.max(0, cursorIdx - 5);
+    const end = Math.min(lines.length, cursorIdx + 6);
+    const slice = lines.slice(start, end);
+    const nonBlank = slice.filter(
+      (l, i) => l.trim().length > 0 || i === cursorIdx - start
+    );
+    const excerpt = nonBlank.join("\n");
+    editorContextRef.set({
+      filePath: activeFile.id,
+      fileName: activeFile.name,
+      language: activeFile.language,
+      excerpt,
+      recentContent: "", // koan-prompt가 트리거 시점에 getRecentContent()로 직접 채움
+      cursorLine: cursor.line,
+      lineCount: lines.length,
+      siblings: getSiblings(tree, activeFile.id),
+    });
+  }, [activeFile, cursor, tree]);
 
   // Stable ref so the global keydown handler always sees fresh state
   const stateRef = useRef({ activeId, openFiles });
@@ -364,6 +403,7 @@ export function IdeShell() {
                     language={activeFile.language}
                     onChange={updateContent}
                     onSave={saveActive}
+                    onCursorChange={onEditorCursorChange}
                   />
                 ) : (
                   <Welcome />

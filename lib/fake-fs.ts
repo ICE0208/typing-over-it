@@ -327,6 +327,25 @@ export function findNode(tree: FsNode[], id: string): FsNode | null {
   return null;
 }
 
+export function getParentId(id: string): string | null {
+  const idx = id.lastIndexOf("/");
+  return idx === -1 ? null : id.slice(0, idx);
+}
+
+export function getSiblings(tree: FsNode[], id: string, max = 5): string[] {
+  const parentId = getParentId(id);
+  const pool = parentId ? findNode(tree, parentId)?.children : tree;
+  if (!pool) return [];
+  const out: string[] = [];
+  for (const n of pool) {
+    if (n.id === id) continue;
+    if (n.children) continue;
+    out.push(n.name);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
 export function languageFromName(name: string): string {
   const ext = name.split(".").pop()?.toLowerCase();
   switch (ext) {

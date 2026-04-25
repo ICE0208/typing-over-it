@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useRef } from "react";
 import { loader, type OnMount } from "@monaco-editor/react";
+import { attachToEditor, detachFromEditor } from "@/lib/recent-content-tracker";
 
 const Editor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
@@ -73,20 +74,35 @@ export function EditorPane({
   language,
   onChange,
   onSave,
+  onCursorChange,
 }: {
   path: string;
   value: string;
   language: string;
   onChange: (v: string) => void;
   onSave?: () => void;
+  onCursorChange?: (line: number, column: number) => void;
 }) {
   const onSaveRef = useRef(onSave);
   useEffect(() => {
     onSaveRef.current = onSave;
   }, [onSave]);
 
+  const onCursorChangeRef = useRef(onCursorChange);
+  useEffect(() => {
+    onCursorChangeRef.current = onCursorChange;
+  }, [onCursorChange]);
+
   useEffect(() => {
     loader.init();
+  }, []);
+
+  // EditorPane 언마운트 시 recent-content-tracker 정리.
+  // Editor 인스턴스 자체는 monaco-editor/react가 관리.
+  useEffect(() => {
+    return () => {
+      detachFromEditor();
+    };
   }, []);
 
   const handleMount: OnMount = (editor, monaco) => {
@@ -95,6 +111,21 @@ export function EditorPane({
       monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
       () => onSaveRef.current?.()
     );
+
+    // recent-content-tracker는 editor 레벨에 붙여서 모델 swap에도 자동 forward.
+    attachToEditor(editor);
+
+    // cursor 변화는 250ms debounce — 매 키입력마다 setState 폭주 방지.
+    let debounce: ReturnType<typeof setTimeout> | null = null;
+    editor.onDidChangeCursorPosition((e) => {
+      if (debounce) clearTimeout(debounce);
+      debounce = setTimeout(() => {
+        onCursorChangeRef.current?.(
+          e.position.lineNumber,
+          e.position.column
+        );
+      }, 250);
+    });
   };
 
   return (

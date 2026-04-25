@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
+import { initCaptionTTS, disposeCaptionTTS } from "@/lib/caption-tts";
+import { disposeKoanClient } from "@/lib/koan-client";
 import { SubtitleScheduler } from "@/lib/subtitle-scheduler";
 import { TypingDetector } from "@/lib/typing-detector";
 import {
@@ -12,9 +14,13 @@ import {
 
 export function TypingEngineHost() {
   useEffect(() => {
+    initCaptionTTS();
     const scheduler = new SubtitleScheduler();
     const detector = new TypingDetector({
-      onTrigger: (rule) => scheduler.fire(rule),
+      onTrigger: (rule, meta) => {
+        // 자동 트리거는 detector가 만든 reason/metrics를 그대로 LLM 컨텍스트로 전달.
+        void scheduler.fire(rule, { meta });
+      },
     });
 
     // 수동 트리거 — Ctrl+Alt+1~5, Ctrl+Alt+0
@@ -51,20 +57,29 @@ export function TypingEngineHost() {
         scheduler.clear();
       } else {
         console.log(
-          `[TypingOverIt] [수동] ${MANUAL_MODIFIER_LABEL}+${digit} → ${mapping} (모든 규칙 무시하고 강제 발화)`
+          `[TypingOverIt] [수동] ${MANUAL_MODIFIER_LABEL}+${digit} → ${mapping} (강제 발화, LLM 컨텍스트 포함)`
         );
-        scheduler.fire(mapping as RuleCategory, { force: true });
+        void scheduler.fire(mapping as RuleCategory, {
+          force: true,
+          meta: {
+            reason: `User manually triggered the ${mapping} caption via ${MANUAL_MODIFIER_LABEL}+${digit}`,
+            metrics: { manual: 1 },
+          },
+        });
       }
     };
     window.addEventListener("keydown", onManualKey, { capture: true });
 
     // 첫 방문 환영 — 새로고침마다 재무장. 영속 저장 없이 effect 클로저 내 1회 가드만 둠.
-    // 첫 keydown이 user gesture를 만족시키므로 force=true로 발화하면 자막(이후 TTS 추가 시 음성도) autoplay 통과.
-    // capture 단계에서 듣되 preventDefault는 하지 않음(타이핑은 정상 진행).
+    // 첫 keydown이 user gesture를 만족시키므로 force=true로 발화하면 TTS도 autoplay 통과.
     const onFirstKey = () => {
       window.removeEventListener("keydown", onFirstKey, { capture: true });
-      console.log("[TypingOverIt] [환영] 첫 keydown 감지 → welcome 강제 발화");
-      scheduler.fire("welcome", { force: true });
+      console.log(
+        "[TypingOverIt] [환영] 첫 keydown 감지 → welcome 강제 발화 (LLM 안 거치고 caption-bank.welcome 시드 풀에서 즉시 픽)"
+      );
+      // 첫 인상은 1~2초 LLM 대기가 어색하므로 무조건 로컬 시드.
+      // caption-bank.ts L17-38의 welcome 풀 20개 중 1개 랜덤.
+      void scheduler.fire("welcome", { force: true });
     };
     window.addEventListener("keydown", onFirstKey, { capture: true });
 
@@ -73,6 +88,8 @@ export function TypingEngineHost() {
       window.removeEventListener("keydown", onFirstKey, { capture: true });
       detector.dispose();
       scheduler.dispose();
+      disposeCaptionTTS();
+      disposeKoanClient();
     };
   }, []);
 
